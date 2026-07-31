@@ -52,21 +52,30 @@ export default function NewJob() {
     setSubmitting(true)
 
     try {
-      const { error } = await supabase.from('jobs').insert([
-        {
-          customer_id: formData.customer_id,
-          service_ids: formData.service_ids,
-          crew_ids: [],
-          scheduled_date: formData.scheduled_date,
-          start_time: formData.start_time,
-          estimated_duration: formData.estimated_duration,
-          status: 'scheduled',
-          notes: formData.notes,
-          price: 0,
-        },
-      ])
+      const selectedCustomer = customers.find((c) => c.id === formData.customer_id)
+
+      const { data: jobData, error } = await supabase
+        .from('jobs')
+        .insert([
+          {
+            customer_id: formData.customer_id,
+            service_ids: formData.service_ids,
+            crew_ids: [],
+            scheduled_date: formData.scheduled_date,
+            start_time: formData.start_time,
+            estimated_duration: formData.estimated_duration,
+            status: 'scheduled',
+            notes: formData.notes,
+            price: 0,
+          },
+        ])
+        .select()
 
       if (error) throw error
+
+      if (jobData?.[0] && selectedCustomer) {
+        await scheduleNotifications(jobData[0], selectedCustomer)
+      }
 
       router.push('/admin/dashboard')
     } catch (error) {
@@ -74,6 +83,35 @@ export default function NewJob() {
       alert('Failed to create job')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const scheduleNotifications = async (job: any, customer: any) => {
+    try {
+      const jobDate = new Date(job.scheduled_date)
+      const schedules = [
+        { hoursOffset: 168, message: `Hi ${customer.name}, we have you scheduled for your service on ${jobDate.toLocaleDateString()} at ${job.start_time}. Confirm or reschedule online.` },
+        { hoursOffset: 24, message: `Reminder: Your service is tomorrow at ${job.start_time}. We look forward to seeing you!` },
+        { hoursOffset: 2, message: `Our crew is on the way! ETA in approximately 2 hours.` },
+      ]
+
+      for (const schedule of schedules) {
+        const notificationTime = new Date(jobDate)
+        notificationTime.setHours(notificationTime.getHours() - schedule.hoursOffset)
+
+        await supabase.from('notifications').insert([
+          {
+            job_id: job.id,
+            customer_id: job.customer_id,
+            type: 'sms',
+            message: schedule.message,
+            scheduled_at: notificationTime.toISOString(),
+            status: 'pending',
+          },
+        ])
+      }
+    } catch (error) {
+      console.error('Error scheduling notifications:', error)
     }
   }
 

@@ -61,6 +61,12 @@ export default function Home() {
               Admin Dashboard
             </Link>
             <Link
+              href="/crew/jobs"
+              className="inline-block px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition"
+            >
+              Crew Portal
+            </Link>
+            <Link
               href="/customer/jobs"
               className="inline-block px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
             >

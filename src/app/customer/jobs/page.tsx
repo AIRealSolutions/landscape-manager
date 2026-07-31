@@ -130,12 +130,14 @@ export default function CustomerJobs() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <button className="text-blue-600 hover:text-blue-700 mr-4">
-                          Reschedule
-                        </button>
-                        <button className="text-gray-600 hover:text-gray-700">
+                        {job.status !== 'completed' && job.status !== 'paid' && (
+                          <Link href={`/customer/jobs/${job.id}/reschedule`} className="text-blue-600 hover:text-blue-700 mr-4">
+                            Reschedule
+                          </Link>
+                        )}
+                        <Link href={`/customer/jobs/${job.id}`} className="text-gray-600 hover:text-gray-700">
                           View Details
-                        </button>
+                        </Link>
                       </td>
                     </tr>
                   ))}

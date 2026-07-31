@@ -92,6 +92,42 @@ src/
     └── (Custom React hooks)
 ```
 
+## Features by Phase
+
+### Phase 2 ✅ (Complete - Just Built!)
+
+**SMS Notifications & Reminders**
+- ✅ Automatic SMS sent 7 days before job
+- ✅ 24-hour reminder notification
+- ✅ 2-hour arrival alert
+- ✅ Job completion notification
+- ✅ Notification scheduling system
+- ✅ Twilio integration ready (add API key)
+- ✅ Webhook-based notification processor
+
+**Crew Mobile Interface** (`/crew/jobs`)
+- ✅ Assigned jobs list with details
+- ✅ Job check-in with geolocation
+- ✅ Job status tracking
+- ✅ Photo upload for proof of work
+- ✅ Job completion workflow
+- ✅ Real-time status updates to customers
+- ✅ Location-aware arrival notifications
+
+**Customer Self-Service Portal**
+- ✅ View all upcoming & past services
+- ✅ Reschedule service requests
+- ✅ Add special notes/instructions
+- ✅ Job details with full information
+- ✅ Payment status tracking
+- ✅ Service history view
+
+**Real-Time Updates**
+- ✅ Job status changes trigger SMS alerts
+- ✅ Crew check-in notifies customer
+- ✅ Job completion sends invoice link
+- ✅ Automatic SMS on status updates
+
 ## Phase Roadmap
 
 ### Phase 1 ✅ (Completed)
