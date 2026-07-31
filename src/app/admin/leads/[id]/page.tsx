@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { getLead, updateLead, addLeadInteraction, createLeadQuote } from '@/lib/leads'
+import { getLead, updateLead, addLeadInteraction, createLeadQuote, Lead, LeadInteraction } from '@/lib/leads'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -57,8 +57,9 @@ export default function LeadDetail() {
   const handleStatusChange = async (newStatus: string) => {
     setUpdating(true)
     try {
-      await updateLead(leadId, { status: newStatus })
-      setLead({ ...lead, status: newStatus })
+      const typedStatus = newStatus as Lead['status']
+      await updateLead(leadId, { status: typedStatus })
+      setLead({ ...lead, status: typedStatus })
     } catch (error) {
       console.error('Error updating status:', error)
     } finally {
@@ -72,12 +73,12 @@ export default function LeadDetail() {
     try {
       const interactionWithUser = {
         ...interactionData,
-        interaction_type: interactionData.type,
+        interaction_type: interactionData.type as LeadInteraction['interaction_type'],
         lead_id: leadId,
         user_id: user.id,
       }
 
-      await addLeadInteraction(interactionWithUser)
+      await addLeadInteraction(interactionWithUser as LeadInteraction & { user_id: string })
       setInteractionData({ type: 'call', subject: '', notes: '' })
       setShowInteractionForm(false)
       await fetchLead()

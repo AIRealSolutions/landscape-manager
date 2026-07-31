@@ -14,6 +14,7 @@ export interface Lead {
   lead_score?: number
   estimated_value?: number
   notes?: string
+  converted_to_customer_id?: string
 }
 
 export interface LeadInteraction {

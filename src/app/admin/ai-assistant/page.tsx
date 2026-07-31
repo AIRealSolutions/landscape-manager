@@ -3,9 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import {
-  getScheduleRecommendations,
   getServiceRecommendations,
-  analyzeCrewPerformance,
   predictRevenue,
   getAIInsights,
 } from '@/lib/ai-assistant'
@@ -14,7 +12,6 @@ import Link from 'next/link'
 
 export default function AIAssistant() {
   const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
   const [insights, setInsights] = useState<string[]>([])
   const [recommendations, setRecommendations] = useState<any[]>([])
   const [revenuePredict, setRevenuePredict] = useState<any>(null)
@@ -29,7 +26,6 @@ export default function AIAssistant() {
         return
       }
 
-      setUser(session.user)
       await fetchAIData()
       setLoading(false)
     }
