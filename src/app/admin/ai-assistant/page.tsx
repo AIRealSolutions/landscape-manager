@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import {
   getScheduleRecommendations,
   getServiceRecommendations,
-  analyzeCrew Performance,
+  analyzeCrewPerformance,
   predictRevenue,
   getAIInsights,
 } from '@/lib/ai-assistant'
