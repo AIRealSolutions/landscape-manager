@@ -125,6 +125,18 @@ export default function AdminDashboard() {
           >
             Add Customer
           </Link>
+          <Link
+            href="/admin/financials"
+            className="inline-block px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          >
+            View Financials
+          </Link>
+          <Link
+            href="/admin/ai-assistant"
+            className="inline-block px-6 py-3 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
+          >
+            AI Assistant
+          </Link>
         </div>
       </main>
     </div>
