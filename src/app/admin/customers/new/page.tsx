@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { getOrCreateCompanyId } from '@/lib/profile'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function NewCustomer() {
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -20,6 +22,7 @@ export default function NewCustomer() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
+    setError(null)
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
@@ -28,13 +31,9 @@ export default function NewCustomer() {
         return
       }
 
-      const { data: userData } = await supabase
-        .from('users')
-        .select('company_id')
-        .eq('id', session.user.id)
-        .single()
+      const companyId = await getOrCreateCompanyId()
 
-      const { error } = await supabase.from('customers').insert([
+      const { error: insertError } = await supabase.from('customers').insert([
         {
           name: formData.name,
           email: formData.email,
@@ -42,17 +41,17 @@ export default function NewCustomer() {
           address: formData.address,
           preferred_contact: formData.preferred_contact,
           notes: formData.notes,
-          company_id: userData?.company_id,
+          company_id: companyId,
           service_history_count: 0,
         },
       ])
 
-      if (error) throw error
+      if (insertError) throw insertError
 
       router.push('/admin/dashboard')
-    } catch (error) {
-      console.error('Error creating customer:', error)
-      alert('Failed to create customer')
+    } catch (err: any) {
+      console.error('Error creating customer:', err)
+      setError(err?.message || 'Failed to create customer')
     } finally {
       setSubmitting(false)
     }
@@ -71,6 +70,12 @@ export default function NewCustomer() {
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-6">
+              <p className="font-medium">Could not create customer</p>
+              <p className="text-sm mt-1">{error}</p>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Name */}
             <div>
