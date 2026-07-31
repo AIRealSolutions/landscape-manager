@@ -161,7 +161,7 @@ export async function generateMessageTemplate(
   return templates[stage]?.(jobDetails) || ''
 }
 
-export async function analyzeCrew Performance(crewId: string) {
+export async function analyzeCrewPerformance(crewId: string) {
   try {
     const { data: crewJobs } = await supabase
       .from('jobs')
