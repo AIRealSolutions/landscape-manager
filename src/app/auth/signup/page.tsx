@@ -9,8 +9,8 @@ export default function Signup() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [companyName, setCompanyName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
@@ -23,17 +23,25 @@ export default function Signup() {
       return
     }
 
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+
     setLoading(true)
 
     try {
-      const { data, error: authError } = await supabase.auth.signUp({
+      const { error: authError } = await supabase.auth.signUp({
         email,
         password,
       })
 
       if (authError) throw authError
 
-      router.push('/auth/login?message=Check your email to confirm your account')
+      setSuccess(true)
+      setTimeout(() => {
+        router.push('/auth/login?message=Check your email to confirm your account')
+      }, 2000)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -42,68 +50,79 @@ export default function Signup() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
-      <div className="w-full max-w-md">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8">
-          <h1 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-6">
-            🌳 Sign Up
-          </h1>
+    <div className="flex flex-col min-h-screen bg-white">
+      {/* Header */}
+      <div className="border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <Link href="/" className="flex items-center gap-2 text-gray-900 hover:text-gray-600">
+            <span className="text-2xl">🌳</span>
+            <h1 className="text-xl font-bold">Landscape Manager</h1>
+          </Link>
+        </div>
+      </div>
 
-          {error && (
-            <div className="bg-red-50 dark:bg-red-900 text-red-700 dark:text-red-200 p-3 rounded mb-4">
-              {error}
+      {/* Signup Form */}
+      <div className="flex-1 flex items-center justify-center px-4 py-12 sm:py-16">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Create Your Account</h2>
+            <p className="text-gray-600">Get started with your landscaping business today</p>
+          </div>
+
+          {success && (
+            <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-lg mb-6">
+              <p className="font-medium">Success!</p>
+              <p className="text-sm mt-1">Check your email to confirm your account. Redirecting...</p>
             </div>
           )}
 
-          <form onSubmit={handleSignup} className="space-y-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-6">
+              <p className="font-medium">Error</p>
+              <p className="text-sm mt-1">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSignup} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Email
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                Email Address
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                placeholder="you@example.com"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Company Name
-              </label>
-              <input
-                type="text"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Password
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                placeholder="••••••••"
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">At least 6 characters</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
                 Confirm Password
               </label>
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
+                placeholder="••••••••"
                 required
               />
             </div>
@@ -111,18 +130,20 @@ export default function Signup() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-green-600 text-white font-medium py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition"
+              className="w-full bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
-              {loading ? 'Creating account...' : 'Sign Up'}
+              {loading ? 'Creating account...' : 'Create Account'}
             </button>
           </form>
 
-          <p className="text-center text-gray-600 dark:text-gray-400 mt-4">
-            Already have an account?{' '}
-            <Link href="/auth/login" className="text-green-600 hover:text-green-700 font-medium">
-              Login
-            </Link>
-          </p>
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <p className="text-center text-gray-600">
+              Already have an account?{' '}
+              <Link href="/auth/login" className="text-green-600 hover:text-green-700 font-semibold">
+                Sign in here
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>
