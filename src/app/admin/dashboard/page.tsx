@@ -10,9 +10,12 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [jobs, setJobs] = useState<any[]>([])
   const [customers, setCustomers] = useState<any[]>([])
+  const [created, setCreated] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
+    setCreated(new URLSearchParams(window.location.search).get('created'))
+
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession()
 
@@ -63,6 +66,14 @@ export default function AdminDashboard() {
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {created && (
+          <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg mb-6 flex items-center gap-2">
+            <span>✅</span>
+            <p className="font-medium">
+              {created === 'customer' ? 'Customer added successfully!' : 'Saved successfully!'}
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <h3 className="text-gray-600 dark:text-gray-400 text-sm font-medium mb-2">Total Customers</h3>

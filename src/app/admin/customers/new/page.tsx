@@ -48,7 +48,7 @@ export default function NewCustomer() {
 
       if (insertError) throw insertError
 
-      router.push('/admin/dashboard')
+      router.push('/admin/dashboard?created=customer')
     } catch (err: any) {
       console.error('Error creating customer:', err)
       setError(err?.message || 'Failed to create customer')

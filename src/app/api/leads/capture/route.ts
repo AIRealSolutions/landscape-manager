@@ -42,44 +42,24 @@ export async function POST(request: NextRequest) {
     leadScore += sourceScores[lead_source] || 5
     leadScore = Math.min(leadScore, 100)
 
-    // Get default company (first company, or create if none exists)
-    const { data: companies } = await supabase.from('companies').select('id').limit(1)
-
-    let companyId = companies?.[0]?.id
-
-    if (!companyId) {
-      const { data: newCompany } = await supabase
-        .from('companies')
-        .insert([{ name: 'Default Company' }])
-        .select()
-        .single()
-      companyId = newCompany?.id
-    }
-
-    // Create lead
-    const { data: lead, error: leadError } = await supabase
-      .from('leads')
-      .insert([
-        {
-          company_id: companyId,
-          first_name,
-          last_name,
-          email: email || null,
-          phone,
-          address: address || null,
-          property_size: property_size || null,
-          service_interested: service_interested || [],
-          lead_source: lead_source || 'website',
-          status: 'new',
-          lead_score: leadScore,
-          notes: notes || null,
-        },
-      ])
-      .select()
+    // Insert through the capture_lead SECURITY DEFINER function: the form
+    // posts anonymously, and leads RLS blocks direct anonymous inserts
+    const { data: leadId, error: leadError } = await supabase.rpc('capture_lead', {
+      p_first_name: first_name,
+      p_last_name: last_name,
+      p_phone: phone,
+      p_email: email || null,
+      p_address: address || null,
+      p_property_size: property_size || null,
+      p_service_interested: service_interested || [],
+      p_lead_source: lead_source || 'website',
+      p_lead_score: leadScore,
+      p_notes: notes || null,
+    })
 
     if (leadError) throw leadError
 
-    if (lead?.[0]) {
+    if (leadId) {
       // Send notification email to admin (mock for now)
       console.log(`New lead captured: ${first_name} ${last_name} - ${phone}`)
 
@@ -100,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      leadId: lead?.[0]?.id,
+      leadId,
       message: 'Lead captured successfully',
     })
   } catch (error: any) {
