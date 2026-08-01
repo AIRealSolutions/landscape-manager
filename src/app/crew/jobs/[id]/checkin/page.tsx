@@ -77,7 +77,7 @@ export default function JobCheckIn() {
 
     try {
       if (beforePhotos.length > 0) {
-        await uploadJobPhotos(job.customer_id, jobId, beforePhotos, 'before', 'Site condition at arrival')
+        await uploadJobPhotos(job.customer_id, job.property_id ?? null, jobId, beforePhotos, 'before', 'Site condition at arrival')
       }
 
       const { error: updateError } = await supabase

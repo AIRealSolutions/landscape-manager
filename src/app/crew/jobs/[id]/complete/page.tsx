@@ -80,8 +80,8 @@ export default function JobComplete() {
     setError(null)
 
     try {
-      // Store proof-of-work photos in the customer's gallery as "after" shots
-      await uploadJobPhotos(job.customer_id, jobId, photos, 'after', 'Completed work')
+      // Store proof-of-work photos in the property's gallery as "after" shots
+      await uploadJobPhotos(job.customer_id, job.property_id ?? null, jobId, photos, 'after', 'Completed work')
 
       const updatedNotes = notes.trim()
         ? `${job.notes ? job.notes + '\n\n' : ''}Completion notes: ${notes.trim()}`

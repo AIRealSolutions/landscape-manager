@@ -9,6 +9,7 @@ export default function JobDetails() {
   const [loading, setLoading] = useState(true)
   const [job, setJob] = useState<any>(null)
   const [customer, setCustomer] = useState<any>(null)
+  const [property, setProperty] = useState<any>(null)
   const [photos, setPhotos] = useState<any[]>([])
   const router = useRouter()
   const params = useParams()
@@ -33,7 +34,7 @@ export default function JobDetails() {
     try {
       const { data: jobData } = await supabase
         .from('jobs')
-        .select('*, customers(id, name, phone, email, address, property_notes, lot_size, lawn_area_sqft)')
+        .select('*, customers(id, name, phone, email, address)')
         .eq('id', jobId)
         .single()
 
@@ -41,11 +42,27 @@ export default function JobDetails() {
       if (jobData?.customers) {
         setCustomer(jobData.customers)
 
-        const { data: photoRows } = await supabase
-          .from('property_photos')
-          .select('*')
-          .eq('customer_id', jobData.customers.id)
-          .order('created_at', { ascending: false })
+        // Resolve the property this job is at (legacy jobs: customer's first)
+        let prop = null
+        if (jobData.property_id) {
+          const { data } = await supabase.from('properties').select('*').eq('id', jobData.property_id).maybeSingle()
+          prop = data
+        }
+        if (!prop) {
+          const { data } = await supabase
+            .from('properties')
+            .select('*')
+            .eq('customer_id', jobData.customers.id)
+            .order('created_at', { ascending: true })
+            .limit(1)
+          prop = data?.[0] || null
+        }
+        setProperty(prop)
+
+        const photoQuery = prop
+          ? supabase.from('property_photos').select('*').eq('property_id', prop.id)
+          : supabase.from('property_photos').select('*').eq('customer_id', jobData.customers.id)
+        const { data: photoRows } = await photoQuery.order('created_at', { ascending: false })
         setPhotos(photoRows || [])
       }
     } catch (error) {
@@ -147,8 +164,12 @@ export default function JobDetails() {
               </div>
             </div>
             <div className="mt-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">Address</p>
-              <p className="font-semibold text-gray-900 dark:text-white">📍 {customer?.address}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {property ? `Property — ${property.label}` : 'Address'}
+              </p>
+              <p className="font-semibold text-gray-900 dark:text-white">
+                📍 {property?.address || customer?.address}
+              </p>
             </div>
           </div>
 
@@ -208,16 +229,16 @@ export default function JobDetails() {
           )}
 
           {/* Property Notes */}
-          {(customer?.property_notes || customer?.lot_size || customer?.lawn_area_sqft) && (
+          {(property?.property_notes || property?.lot_size || property?.lawn_area_sqft) && (
             <div className="mb-8 pb-8 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">🏡 Property Info</h3>
               <div className="bg-amber-50 p-4 rounded border-l-4 border-amber-500 space-y-1">
-                {customer.lot_size && <p className="text-amber-900">Lot: {customer.lot_size}</p>}
-                {customer.lawn_area_sqft && (
-                  <p className="text-amber-900">Lawn area: {customer.lawn_area_sqft.toLocaleString()} sq ft</p>
+                {property.lot_size && <p className="text-amber-900">Lot: {property.lot_size}</p>}
+                {property.lawn_area_sqft && (
+                  <p className="text-amber-900">Lawn area: {property.lawn_area_sqft.toLocaleString()} sq ft</p>
                 )}
-                {customer.property_notes && (
-                  <p className="text-amber-900 whitespace-pre-wrap">{customer.property_notes}</p>
+                {property.property_notes && (
+                  <p className="text-amber-900 whitespace-pre-wrap">{property.property_notes}</p>
                 )}
               </div>
             </div>

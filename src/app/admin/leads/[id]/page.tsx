@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getLead, updateLead, addLeadInteraction, createLeadQuote, Lead, LeadInteraction } from '@/lib/leads'
+import { createCustomer } from '@/lib/customers'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -124,24 +125,16 @@ export default function LeadDetail() {
 
     setUpdating(true)
     try {
-      // Create customer record (columns must match the customers schema)
-      const { data: customerData, error: customerError } = await supabase
-        .from('customers')
-        .insert([
-          {
-            company_id: lead.company_id,
-            name: `${lead.first_name} ${lead.last_name}`.trim(),
-            email: lead.email,
-            phone: lead.phone,
-            address: lead.address || 'Unknown',
-            preferred_contact: 'sms',
-            notes: lead.property_size ? `Property size: ${lead.property_size}` : null,
-          },
-        ])
-        .select()
-        .single()
-
-      if (customerError) throw customerError
+      // Create customer record (shared lib also creates their Primary property)
+      const customerData = await createCustomer({
+        company_id: lead.company_id,
+        name: `${lead.first_name} ${lead.last_name}`.trim(),
+        email: lead.email,
+        phone: lead.phone,
+        address: lead.address || 'Unknown',
+        preferred_contact: 'sms',
+        notes: lead.property_size ? `Property size: ${lead.property_size}` : null,
+      })
 
       if (customerData?.id) {
         // Update lead to mark as won

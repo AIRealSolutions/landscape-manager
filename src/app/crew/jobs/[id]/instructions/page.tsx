@@ -10,6 +10,7 @@ export default function CrewInstructions() {
   const [loading, setLoading] = useState(true)
   const [job, setJob] = useState<any>(null)
   const [customer, setCustomer] = useState<any>(null)
+  const [property, setProperty] = useState<any>(null)
   const [steps, setSteps] = useState<any[]>([])
   const [completedStepIds, setCompletedStepIds] = useState<Set<string>>(new Set())
   const [photos, setPhotos] = useState<any[]>([])
@@ -36,7 +37,7 @@ export default function CrewInstructions() {
   const fetchAll = async () => {
     const { data: jobData } = await supabase
       .from('jobs')
-      .select('*, customers(id, name, phone, address, property_type, lot_size, lawn_area_sqft, property_notes)')
+      .select('*, customers(id, name, phone)')
       .eq('id', jobId)
       .single()
 
@@ -45,10 +46,34 @@ export default function CrewInstructions() {
     if (!cust) return
     setCustomer(cust)
 
+    // Resolve which property this job is at (legacy jobs: customer's first)
+    let prop = null
+    if (jobData.property_id) {
+      const { data } = await supabase.from('properties').select('*').eq('id', jobData.property_id).maybeSingle()
+      prop = data
+    }
+    if (!prop) {
+      const { data } = await supabase
+        .from('properties')
+        .select('*')
+        .eq('customer_id', cust.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+      prop = data?.[0] || null
+    }
+    setProperty(prop)
+
+    const stepsQuery = prop
+      ? supabase.from('workflow_steps').select('*').eq('property_id', prop.id).order('step_order', { ascending: true })
+      : supabase.from('workflow_steps').select('*').eq('customer_id', cust.id).order('step_order', { ascending: true })
+    const photosQuery = prop
+      ? supabase.from('property_photos').select('*').eq('property_id', prop.id).order('created_at', { ascending: false })
+      : supabase.from('property_photos').select('*').eq('customer_id', cust.id).order('created_at', { ascending: false })
+
     const [{ data: stepRows }, { data: completions }, { data: photoRows }] = await Promise.all([
-      supabase.from('workflow_steps').select('*').eq('customer_id', cust.id).order('step_order', { ascending: true }),
+      stepsQuery,
       supabase.from('job_step_completions').select('step_id').eq('job_id', jobId),
-      supabase.from('property_photos').select('*').eq('customer_id', cust.id).order('created_at', { ascending: false }),
+      photosQuery,
     ])
 
     setSteps(stepRows || [])
@@ -92,7 +117,7 @@ export default function CrewInstructions() {
     setUploadingStep(step.id)
     setError(null)
     try {
-      await uploadJobPhotos(customer.id, jobId, files, 'after', `Step: ${step.title}`)
+      await uploadJobPhotos(customer.id, property?.id ?? null, jobId, files, 'after', `Step: ${step.title}`)
       await fetchAll()
     } catch (err: any) {
       setError(err?.message || 'Failed to upload photo')
@@ -163,19 +188,22 @@ export default function CrewInstructions() {
         {/* Property header */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <h2 className="text-2xl font-bold text-gray-900">{customer.name}</h2>
-          <p className="text-gray-600 mt-1">📍 {customer.address}</p>
+          {property && (
+            <p className="text-sm font-medium text-green-700 mt-0.5">🏡 {property.label}</p>
+          )}
+          <p className="text-gray-600 mt-1">📍 {property?.address || 'No address on file'}</p>
           <div className="flex flex-wrap gap-2 mt-3">
             <span className="text-xs px-2 py-1 bg-green-50 text-green-700 rounded-full capitalize">
-              {customer.property_type || 'residential'}
+              {property?.property_type || 'residential'}
             </span>
-            {customer.lot_size && (
+            {property?.lot_size && (
               <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                Lot: {customer.lot_size}
+                Lot: {property.lot_size}
               </span>
             )}
-            {customer.lawn_area_sqft && (
+            {property?.lawn_area_sqft && (
               <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                Lawn: {customer.lawn_area_sqft.toLocaleString()} sq ft
+                Lawn: {property.lawn_area_sqft.toLocaleString()} sq ft
               </span>
             )}
             {totalMinutes > 0 && (
@@ -184,10 +212,10 @@ export default function CrewInstructions() {
               </span>
             )}
           </div>
-          {customer.property_notes && (
+          {property?.property_notes && (
             <div className="mt-4 bg-amber-50 border-l-4 border-amber-500 p-3 rounded">
               <p className="text-xs font-bold text-amber-800 uppercase mb-1">⚠️ Know Before You Start</p>
-              <p className="text-sm text-amber-900 whitespace-pre-wrap">{customer.property_notes}</p>
+              <p className="text-sm text-amber-900 whitespace-pre-wrap">{property.property_notes}</p>
             </div>
           )}
         </div>

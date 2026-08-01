@@ -1,9 +1,10 @@
 import { supabase } from './supabase'
 
 // Uploads image files to the property-photos bucket and records them in
-// property_photos, tied to a customer and optionally a job.
+// property_photos, tied to a customer, a property, and optionally a job.
 export async function uploadJobPhotos(
   customerId: string,
+  propertyId: string | null,
   jobId: string | null,
   files: File[],
   category: 'property' | 'before' | 'after' | 'reference' | 'issue',
@@ -25,6 +26,7 @@ export async function uploadJobPhotos(
     const { error: insertError } = await supabase.from('property_photos').insert([
       {
         customer_id: customerId,
+        property_id: propertyId,
         job_id: jobId,
         storage_path: path,
         url: urlData.publicUrl,

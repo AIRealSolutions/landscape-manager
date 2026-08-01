@@ -48,6 +48,20 @@ export async function createCustomer(customer: Customer & { company_id: string }
     .select()
     .single()
   if (error) throw error
+
+  // Every customer starts with a "Primary" property at their address
+  if (data?.id) {
+    const { error: propError } = await supabase.from('properties').insert([
+      {
+        customer_id: data.id,
+        label: 'Primary',
+        address: customer.address || 'Address on file',
+        property_type: 'residential',
+      },
+    ])
+    if (propError) console.error('Could not create initial property:', propError.message)
+  }
+
   return data
 }
 

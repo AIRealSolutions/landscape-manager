@@ -12,6 +12,7 @@ export default function NewJob() {
   const [services, setServices] = useState<any[]>([])
   const [formData, setFormData] = useState({
     customer_id: '',
+    property_id: '',
     service_ids: [] as string[],
     scheduled_date: '',
     start_time: '',
@@ -19,6 +20,7 @@ export default function NewJob() {
     notes: '',
     completion_criteria: '',
   })
+  const [properties, setProperties] = useState<any[]>([])
   const [keyAspects, setKeyAspects] = useState<string[]>([])
   const [aspectInput, setAspectInput] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -51,6 +53,24 @@ export default function NewJob() {
     }
   }
 
+  const handleCustomerChange = async (customerId: string) => {
+    setFormData((prev) => ({ ...prev, customer_id: customerId, property_id: '' }))
+    setProperties([])
+    if (!customerId) return
+
+    const { data: props } = await supabase
+      .from('properties')
+      .select('*')
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: true })
+
+    setProperties(props || [])
+    // Auto-select when the customer has exactly one property
+    if (props?.length === 1) {
+      setFormData((prev) => ({ ...prev, property_id: props[0].id }))
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
@@ -67,6 +87,7 @@ export default function NewJob() {
         .insert([
           {
             customer_id: formData.customer_id,
+            property_id: formData.property_id || null,
             service_ids: formData.service_ids,
             crew_ids: [],
             scheduled_date: formData.scheduled_date,
@@ -176,7 +197,7 @@ export default function NewJob() {
               </label>
               <select
                 value={formData.customer_id}
-                onChange={(e) => setFormData({ ...formData, customer_id: e.target.value })}
+                onChange={(e) => handleCustomerChange(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 outline-none"
                 required
               >
@@ -188,6 +209,35 @@ export default function NewJob() {
                 ))}
               </select>
             </div>
+
+            {/* Property Selection */}
+            {formData.customer_id && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Property *
+                </label>
+                {properties.length === 0 ? (
+                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    This customer has no properties yet — add one on their profile first, or the job will
+                    be created without a property workflow.
+                  </p>
+                ) : (
+                  <select
+                    value={formData.property_id}
+                    onChange={(e) => setFormData({ ...formData, property_id: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-green-500 outline-none"
+                    required
+                  >
+                    <option value="">Select a property</option>
+                    {properties.map((property) => (
+                      <option key={property.id} value={property.id}>
+                        {property.label} — {property.address}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
 
             {/* Services Selection */}
             <div>
