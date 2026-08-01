@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { uploadJobPhotos } from '@/lib/photos'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -67,31 +68,42 @@ export default function JobComplete() {
     setPreviewUrls(previewUrls.filter((_, i) => i !== index))
   }
 
+  const [error, setError] = useState<string | null>(null)
+
   const handleCompleteJob = async () => {
     if (photos.length === 0) {
-      alert('Please upload at least one photo as proof of work')
+      setError('Please add at least one photo as proof of work')
       return
     }
 
     setSubmitting(true)
+    setError(null)
 
     try {
-      const { error } = await supabase
+      // Store proof-of-work photos in the customer's gallery as "after" shots
+      await uploadJobPhotos(job.customer_id, jobId, photos, 'after', 'Completed work')
+
+      const updatedNotes = notes.trim()
+        ? `${job.notes ? job.notes + '\n\n' : ''}Completion notes: ${notes.trim()}`
+        : job.notes
+
+      const { error: updateError } = await supabase
         .from('jobs')
         .update({
           status: 'completed',
+          notes: updatedNotes,
           updated_at: new Date().toISOString(),
         })
         .eq('id', jobId)
 
-      if (error) throw error
+      if (updateError) throw updateError
 
       await sendCompletionNotification()
 
       router.push('/crew/jobs?status=completed')
-    } catch (error) {
-      console.error('Error completing job:', error)
-      alert('Failed to complete job')
+    } catch (err: any) {
+      console.error('Error completing job:', err)
+      setError(err?.message || 'Failed to complete job')
     } finally {
       setSubmitting(false)
     }
@@ -155,6 +167,31 @@ export default function JobComplete() {
               📍 {customer?.address}
             </p>
           </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-6">
+              <p className="font-medium">Could not complete job</p>
+              <p className="text-sm mt-1">{error}</p>
+            </div>
+          )}
+
+          {(job.key_aspects?.length > 0 || job.completion_criteria) && (
+            <div className="mb-8 bg-green-50 border border-green-200 rounded-lg p-4">
+              <h3 className="font-bold text-green-900 mb-2">Before you finish — did you cover everything?</h3>
+              {job.key_aspects?.length > 0 && (
+                <ul className="space-y-1 mb-3">
+                  {job.key_aspects.map((aspect: string, i: number) => (
+                    <li key={i} className="text-green-900 text-sm">☐ {aspect}</li>
+                  ))}
+                </ul>
+              )}
+              {job.completion_criteria && (
+                <p className="text-sm text-green-900">
+                  <strong>Target result:</strong> {job.completion_criteria}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="mb-8">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">

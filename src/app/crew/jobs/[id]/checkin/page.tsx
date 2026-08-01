@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { uploadJobPhotos } from '@/lib/photos'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -12,6 +13,8 @@ export default function JobCheckIn() {
   const [customer, setCustomer] = useState<any>(null)
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [locationError, setLocationError] = useState<string | null>(null)
+  const [beforePhotos, setBeforePhotos] = useState<File[]>([])
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const params = useParams()
   const jobId = params.id as string
@@ -70,9 +73,14 @@ export default function JobCheckIn() {
 
   const handleCheckIn = async () => {
     setSubmitting(true)
+    setError(null)
 
     try {
-      const { error } = await supabase
+      if (beforePhotos.length > 0) {
+        await uploadJobPhotos(job.customer_id, jobId, beforePhotos, 'before', 'Site condition at arrival')
+      }
+
+      const { error: updateError } = await supabase
         .from('jobs')
         .update({
           status: 'in-progress',
@@ -80,14 +88,14 @@ export default function JobCheckIn() {
         })
         .eq('id', jobId)
 
-      if (error) throw error
+      if (updateError) throw updateError
 
       await sendNotificationToCustomer('arrival')
 
       router.push(`/crew/jobs/${jobId}`)
-    } catch (error) {
-      console.error('Error checking in:', error)
-      alert('Failed to check in')
+    } catch (err: any) {
+      console.error('Error checking in:', err)
+      setError(err?.message || 'Failed to check in')
     } finally {
       setSubmitting(false)
     }
@@ -202,6 +210,45 @@ export default function JobCheckIn() {
             <div className="mb-8 p-4 bg-blue-50 dark:bg-blue-900 rounded border-l-4 border-blue-500">
               <h3 className="font-bold text-gray-900 dark:text-white mb-2">Special Instructions</h3>
               <p className="text-gray-700 dark:text-gray-300">{job.notes}</p>
+            </div>
+          )}
+
+          {/* Before photos (optional) */}
+          <div className="mb-8 p-4 bg-gray-100 rounded">
+            <h3 className="font-bold text-gray-900 mb-2">📷 Before Photos (optional)</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Snap the site condition on arrival — these save to the customer's gallery as "Before" shots.
+            </p>
+            <label className="inline-block px-4 py-2 bg-gray-800 text-white rounded-lg cursor-pointer hover:bg-gray-700 transition text-sm font-medium">
+              {beforePhotos.length > 0
+                ? `${beforePhotos.length} photo${beforePhotos.length > 1 ? 's' : ''} ready — add more`
+                : 'Take / Choose Photos'}
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                capture="environment"
+                onChange={(e) => {
+                  setBeforePhotos((prev) => [...prev, ...Array.from(e.target.files || [])])
+                  e.target.value = ''
+                }}
+                className="hidden"
+              />
+            </label>
+            {beforePhotos.length > 0 && (
+              <button
+                onClick={() => setBeforePhotos([])}
+                className="ml-3 text-sm text-red-600 hover:text-red-700"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-6">
+              <p className="font-medium">Could not check in</p>
+              <p className="text-sm mt-1">{error}</p>
             </div>
           )}
 

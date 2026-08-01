@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { uploadJobPhotos } from '@/lib/photos'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -111,28 +112,13 @@ export default function CustomerDetail() {
     setError(null)
     setNotice(null)
     try {
-      for (const file of Array.from(files)) {
-        const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')
-        const path = `${customerId}/${Date.now()}-${safeName}`
-
-        const { error: uploadError } = await supabase.storage
-          .from('property-photos')
-          .upload(path, file, { cacheControl: '3600', upsert: false })
-        if (uploadError) throw uploadError
-
-        const { data: urlData } = supabase.storage.from('property-photos').getPublicUrl(path)
-
-        const { error: insertError } = await supabase.from('property_photos').insert([
-          {
-            customer_id: customerId,
-            storage_path: path,
-            url: urlData.publicUrl,
-            category: uploadCategory,
-            caption: uploadCaption || null,
-          },
-        ])
-        if (insertError) throw insertError
-      }
+      await uploadJobPhotos(
+        customerId,
+        null,
+        Array.from(files),
+        uploadCategory as 'property' | 'before' | 'after' | 'reference' | 'issue',
+        uploadCaption
+      )
 
       setUploadCaption('')
       setNotice(`${files.length} photo${files.length > 1 ? 's' : ''} uploaded`)
