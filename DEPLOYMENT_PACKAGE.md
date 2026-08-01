@@ -35,41 +35,43 @@ staff simpler.
 4. Deploy, then add their custom domain under **Settings → Domains**
    (e.g. `greenscapepros.com` or `lawn.clientdomain.com`)
 
-## 3. Environment variables (the branding package)
+## 3. Environment variables
 
-Set these in the Vercel project — this is what makes the instance *theirs*:
+Only three are required — branding is NOT done with env vars (see step 4):
 
 | Variable | Example | Purpose |
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://xxxx.supabase.co` | Their private database |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` | Their database public key |
 | `NEXT_PUBLIC_APP_URL` | `https://greenscapepros.com` | Their site URL |
-| `NEXT_PUBLIC_COMPANY_NAME` | `GreenScape Pros` | Shown everywhere |
-| `NEXT_PUBLIC_COMPANY_TAGLINE` | `Louisville's most trusted lawn care` | Homepage headline |
-| `NEXT_PUBLIC_COMPANY_PHONE` | `(502) 555-0134` | Click-to-call across the site |
-| `NEXT_PUBLIC_COMPANY_EMAIL` | `hello@greenscapepros.com` | Footer contact |
-| `NEXT_PUBLIC_COMPANY_SERVICE_AREA` | `Serving Louisville & surrounding areas` | Hero + footer |
-| `NEXT_PUBLIC_COMPANY_EMOJI` | `🌳` | Logo mark |
 | `NEXT_PUBLIC_PAYMENT_MODE` | `mock` | `mock` until their Stripe is set up |
 | `NEXT_PUBLIC_EMAIL_MODE` | `mock` | `mock` until their email provider is set up |
 
-Optional (when the client is ready for real integrations): Twilio credentials
-for SMS, Stripe keys for payments.
+Optional fallbacks: `NEXT_PUBLIC_COMPANY_NAME` / `_TAGLINE` / `_PHONE` /
+`_EMAIL` / `_SERVICE_AREA` / `_EMOJI` render before the database has
+branding saved — useful only for the very first minutes of a fresh
+instance. Once Business Settings is filled in, the database wins.
+
+Optional (when the client is ready for real integrations): Twilio
+credentials for SMS, Stripe keys for payments.
 
 ## 4. Onboard the client (first session together)
 
 1. **Owner account**: they sign up at `/auth/signup` — first login
    auto-creates their company record
-2. **Services & Pricing** (`/admin/services`): enter their real service
+2. **Business Settings** (`/admin/settings`): enter their name, tagline,
+   phone, email, service area, and logo emoji — this brands their public
+   website and quote form instantly, no redeploy needed
+3. **Services & Pricing** (`/admin/services`): enter their real service
    catalog with prices — this powers the public price menu on their homepage
    and job pricing
-3. **Customers & properties**: add a few key customers, their properties,
+4. **Customers & properties**: add a few key customers, their properties,
    property photos, and workflows
-4. **Calendar** (`/admin/calendar`): block out any vacations and their daily
+5. **Calendar** (`/admin/calendar`): block out any vacations and their daily
    lunch break
-5. **Service plans**: set up recurring plans (interval + special rate) for
+6. **Service plans**: set up recurring plans (interval + special rate) for
    their regular customers
-6. **Crew accounts**: crew members sign up, and you set their role to `crew`
+7. **Crew accounts**: crew members sign up, and you set their role to `crew`
    in the database (`users` table)
 
 ## 5. Lead funnel setup

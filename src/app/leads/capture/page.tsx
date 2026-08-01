@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { company } from '@/config/company'
+import { getPublicBranding, defaultBranding } from '@/lib/branding'
 
 const KNOWN_SOURCES = ['website', 'phone', 'referral', 'social', 'advertisement', 'other']
 
@@ -11,6 +11,11 @@ export default function LeadCapture() {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [utmNote, setUtmNote] = useState('')
+  const [company, setCompany] = useState(defaultBranding)
+
+  useEffect(() => {
+    getPublicBranding().then(setCompany)
+  }, [])
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',

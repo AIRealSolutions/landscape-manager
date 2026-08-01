@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { company } from '@/config/company'
+import { getPublicBranding, defaultBranding } from '@/lib/branding'
 
 const FALLBACK_SERVICES = [
   { name: 'Lawn Mowing & Care', description: 'Regular mowing, edging, and trimming for a lawn that always looks its best', icon: '🌱' },
@@ -17,9 +17,12 @@ const FALLBACK_SERVICES = [
 export default function Home() {
   const [session, setSession] = useState<any>(null)
   const [services, setServices] = useState<any[]>([])
+  const [company, setCompany] = useState(defaultBranding)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
+
+    getPublicBranding().then(setCompany)
 
     // Public price menu from the services catalog (falls back to defaults)
     supabase

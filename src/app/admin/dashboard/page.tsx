@@ -171,6 +171,12 @@ export default function AdminDashboard() {
             💲 Services & Pricing
           </Link>
           <Link
+            href="/admin/settings"
+            className="inline-block px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-800"
+          >
+            ⚙️ Business Settings
+          </Link>
+          <Link
             href="/admin/financials"
             className="inline-block px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
           >
