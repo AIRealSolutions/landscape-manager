@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { getScheduleBlocks, conflictingBlocks } from '@/lib/schedule'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -21,6 +22,7 @@ export default function NewJob() {
     completion_criteria: '',
   })
   const [properties, setProperties] = useState<any[]>([])
+  const [scheduleBlocks, setScheduleBlocks] = useState<any[]>([])
   const [keyAspects, setKeyAspects] = useState<string[]>([])
   const [aspectInput, setAspectInput] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -48,6 +50,7 @@ export default function NewJob() {
 
       setCustomers(customersData || [])
       setServices(servicesData || [])
+      setScheduleBlocks(await getScheduleBlocks().catch(() => []))
     } catch (error) {
       console.error('Error fetching data:', error)
     }
@@ -156,6 +159,11 @@ export default function NewJob() {
       console.error('Error scheduling notifications:', error)
     }
   }
+
+  const scheduleConflicts =
+    formData.scheduled_date && formData.start_time
+      ? conflictingBlocks(scheduleBlocks, formData.scheduled_date, formData.start_time, formData.estimated_duration || 0)
+      : []
 
   const handleServiceToggle = (serviceId: string) => {
     setFormData((prev) => ({
@@ -308,6 +316,24 @@ export default function NewJob() {
                 required
               />
             </div>
+
+            {/* Schedule conflict warning */}
+            {scheduleConflicts.length > 0 && (
+              <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
+                <p className="font-semibold text-amber-900 mb-1">⚠️ This time is blocked off</p>
+                <ul className="text-sm text-amber-800 space-y-0.5">
+                  {scheduleConflicts.map((b: any, i: number) => (
+                    <li key={i}>
+                      {b.title}
+                      {b.all_day ? ' (all day)' : ` (${b.start_time?.slice(0, 5)}–${b.end_time?.slice(0, 5)})`}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-amber-700 mt-2">
+                  You can still create the job, but consider picking a different time.
+                </p>
+              </div>
+            )}
 
             {/* Key Aspects */}
             <div>

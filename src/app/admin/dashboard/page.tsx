@@ -150,6 +150,12 @@ export default function AdminDashboard() {
             Customers
           </Link>
           <Link
+            href="/admin/calendar"
+            className="inline-block px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
+          >
+            📅 Calendar
+          </Link>
+          <Link
             href="/admin/financials"
             className="inline-block px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
           >
