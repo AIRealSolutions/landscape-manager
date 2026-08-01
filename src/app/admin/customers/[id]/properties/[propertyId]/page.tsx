@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { uploadJobPhotos } from '@/lib/photos'
 import { getProperty, updateProperty, deleteProperty } from '@/lib/properties'
+import { getServicePlan, upsertServicePlan, deleteServicePlan } from '@/lib/servicePlans'
+import { getServices } from '@/lib/services'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -54,6 +56,22 @@ export default function PropertyDetail() {
     requires_photo: false,
   })
 
+  // Service plan
+  const [plan, setPlan] = useState<any>(null)
+  const [catalog, setCatalog] = useState<any[]>([])
+  const [savingPlan, setSavingPlan] = useState(false)
+  const [planForm, setPlanForm] = useState({
+    active: true,
+    interval_days: '7',
+    override_price: '',
+    service_ids: [] as string[],
+    preferred_time: '09:00',
+    estimated_duration: '60',
+    season_start: '',
+    season_end: '',
+    notes: '',
+  })
+
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -68,11 +86,13 @@ export default function PropertyDetail() {
   }, [])
 
   const fetchAll = async () => {
-    const [prop, { data: cust }, { data: photoRows }, { data: stepRows }] = await Promise.all([
+    const [prop, { data: cust }, { data: photoRows }, { data: stepRows }, planRow, services] = await Promise.all([
       getProperty(propertyId),
       supabase.from('customers').select('id, name').eq('id', customerId).maybeSingle(),
       supabase.from('property_photos').select('*').eq('property_id', propertyId).order('created_at', { ascending: false }),
       supabase.from('workflow_steps').select('*').eq('property_id', propertyId).order('step_order', { ascending: true }),
+      getServicePlan(propertyId).catch(() => null),
+      getServices().catch(() => []),
     ])
 
     setProperty(prop)
@@ -89,6 +109,81 @@ export default function PropertyDetail() {
     }
     setPhotos(photoRows || [])
     setSteps(stepRows || [])
+    setCatalog(services)
+    setPlan(planRow)
+    if (planRow) {
+      setPlanForm({
+        active: planRow.active ?? true,
+        interval_days: planRow.interval_days?.toString() || '7',
+        override_price: planRow.override_price?.toString() || '',
+        service_ids: planRow.service_ids || [],
+        preferred_time: planRow.preferred_time?.slice(0, 5) || '09:00',
+        estimated_duration: planRow.estimated_duration?.toString() || '60',
+        season_start: planRow.season_start || '',
+        season_end: planRow.season_end || '',
+        notes: planRow.notes || '',
+      })
+    }
+  }
+
+  const handleSavePlan = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingPlan(true)
+    setError(null)
+    setNotice(null)
+    try {
+      await upsertServicePlan({
+        customer_id: customerId,
+        property_id: propertyId,
+        active: planForm.active,
+        interval_days: parseInt(planForm.interval_days) || 7,
+        override_price: planForm.override_price ? parseFloat(planForm.override_price) : null,
+        service_ids: planForm.service_ids,
+        preferred_time: planForm.preferred_time || '09:00',
+        estimated_duration: parseInt(planForm.estimated_duration) || 60,
+        season_start: planForm.season_start || null,
+        season_end: planForm.season_end || null,
+        notes: planForm.notes.trim() || null,
+      })
+      setNotice('Service plan saved — the next visit will be scheduled automatically when a job here is completed')
+      await fetchAll()
+    } catch (err: any) {
+      setError(err?.message || 'Failed to save service plan')
+    } finally {
+      setSavingPlan(false)
+    }
+  }
+
+  const handleDeletePlan = async () => {
+    if (!plan?.id || !confirm('Remove this service plan? Auto-scheduling stops for this property.')) return
+    setError(null)
+    try {
+      await deleteServicePlan(plan.id)
+      setPlan(null)
+      setPlanForm({
+        active: true,
+        interval_days: '7',
+        override_price: '',
+        service_ids: [],
+        preferred_time: '09:00',
+        estimated_duration: '60',
+        season_start: '',
+        season_end: '',
+        notes: '',
+      })
+      setNotice('Service plan removed')
+    } catch (err: any) {
+      setError(err?.message || 'Failed to remove service plan')
+    }
+  }
+
+  const togglePlanService = (serviceId: string) => {
+    setPlanForm((prev) => ({
+      ...prev,
+      service_ids: prev.service_ids.includes(serviceId)
+        ? prev.service_ids.filter((id) => id !== serviceId)
+        : [...prev.service_ids, serviceId],
+    }))
   }
 
   const handleSaveDetails = async (e: React.FormEvent) => {
@@ -593,6 +688,168 @@ export default function PropertyDetail() {
                 className="mt-5 px-6 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 transition"
               >
                 {savingStep ? 'Adding...' : '+ Add Step'}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Service Plan */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex flex-wrap justify-between items-center gap-2 mb-1">
+            <h2 className="text-lg font-bold text-gray-900">
+              🔁 Recurring Service Plan
+              {plan && (
+                <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${plan.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                  {plan.active ? 'Active' : 'Paused'}
+                </span>
+              )}
+            </h2>
+            {plan && (
+              <button onClick={handleDeletePlan} className="text-sm text-red-600 hover:text-red-700">
+                Remove plan
+              </button>
+            )}
+          </div>
+          <p className="text-sm text-gray-500 mb-6">
+            When a job at this property is completed, the next visit is created automatically — the
+            interval below counts from the day the last job finished, at the special rate you set here.
+          </p>
+
+          <form onSubmit={handleSavePlan} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">
+                  Days Until Next Visit *
+                </label>
+                <input
+                  type="number"
+                  value={planForm.interval_days}
+                  onChange={(e) => setPlanForm({ ...planForm, interval_days: e.target.value })}
+                  min="1"
+                  max="365"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-green-500 outline-none"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">Counted from job completion day</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">
+                  Special Rate per Visit ($)
+                </label>
+                <input
+                  type="number"
+                  value={planForm.override_price}
+                  onChange={(e) => setPlanForm({ ...planForm, override_price: e.target.value })}
+                  min="0"
+                  step="0.01"
+                  placeholder="Overrides catalog prices"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-green-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Preferred Start Time</label>
+                <input
+                  type="time"
+                  value={planForm.preferred_time}
+                  onChange={(e) => setPlanForm({ ...planForm, preferred_time: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-green-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Est. Duration (min)</label>
+                <input
+                  type="number"
+                  value={planForm.estimated_duration}
+                  onChange={(e) => setPlanForm({ ...planForm, estimated_duration: e.target.value })}
+                  min="15"
+                  step="15"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-green-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">
+                  Season Start <span className="text-gray-400">(optional)</span>
+                </label>
+                <input
+                  type="date"
+                  value={planForm.season_start}
+                  onChange={(e) => setPlanForm({ ...planForm, season_start: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-green-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">
+                  Season End <span className="text-gray-400">(optional)</span>
+                </label>
+                <input
+                  type="date"
+                  value={planForm.season_end}
+                  onChange={(e) => setPlanForm({ ...planForm, season_end: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-green-500 outline-none"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 -mt-2">
+              Season repeats every year (month/day). A visit that would land outside the season isn't
+              created — auto-scheduling resumes when a job is completed in season.
+            </p>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">Services Each Visit</label>
+              {catalog.length === 0 ? (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  No services in your catalog yet —{' '}
+                  <Link href="/admin/services" className="font-semibold underline">
+                    set up Services &amp; Pricing
+                  </Link>{' '}
+                  first.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {catalog.map((service) => (
+                    <label key={service.id} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={planForm.service_ids.includes(service.id)}
+                        onChange={() => togglePlanService(service.id)}
+                        className="w-4 h-4 text-green-600 rounded"
+                      />
+                      <span className="text-sm text-gray-700">
+                        {service.name} — ${Number(service.base_price).toFixed(2)}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-1">Plan Notes</label>
+              <textarea
+                value={planForm.notes}
+                onChange={(e) => setPlanForm({ ...planForm, notes: e.target.value })}
+                rows={2}
+                placeholder="Anything special about this arrangement..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-green-500 outline-none"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={planForm.active}
+                  onChange={(e) => setPlanForm({ ...planForm, active: e.target.checked })}
+                  className="w-4 h-4 text-green-600 rounded"
+                />
+                <span className="text-sm text-gray-700">Plan active (auto-schedule next visits)</span>
+              </label>
+              <button
+                type="submit"
+                disabled={savingPlan}
+                className="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 transition"
+              >
+                {savingPlan ? 'Saving...' : plan ? 'Save Plan' : 'Create Plan'}
               </button>
             </div>
           </form>

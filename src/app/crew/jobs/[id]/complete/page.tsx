@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { uploadJobPhotos } from '@/lib/photos'
+import { autoScheduleNextVisit } from '@/lib/servicePlans'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -97,6 +98,16 @@ export default function JobComplete() {
         .eq('id', jobId)
 
       if (updateError) throw updateError
+
+      // Service plan: schedule the next visit measured from today's completion
+      try {
+        const result = await autoScheduleNextVisit(job)
+        if (result.created) {
+          console.log(`Next visit auto-scheduled for ${result.nextDate}`)
+        }
+      } catch (planErr) {
+        console.error('Auto-scheduling next visit failed:', planErr)
+      }
 
       await sendCompletionNotification()
 
