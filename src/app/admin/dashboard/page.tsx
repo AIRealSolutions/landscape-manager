@@ -95,16 +95,25 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Recent Jobs</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Recent Jobs</h2>
+              <Link href="/admin/jobs" className="text-sm text-green-600 hover:text-green-700 font-medium">
+                View all →
+              </Link>
+            </div>
             <div className="space-y-3">
               {jobs.length === 0 ? (
                 <p className="text-gray-600 dark:text-gray-400">No jobs yet</p>
               ) : (
                 jobs.map((job) => (
-                  <div key={job.id} className="border border-gray-200 dark:border-gray-700 rounded p-3">
+                  <Link
+                    key={job.id}
+                    href={`/admin/jobs/${job.id}`}
+                    className="block border border-gray-200 dark:border-gray-700 rounded p-3 hover:border-green-300 hover:bg-green-50 transition"
+                  >
                     <p className="font-medium text-gray-900 dark:text-white">{job.scheduled_date}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Status: {job.status}</p>
-                  </div>
+                  </Link>
                 ))
               )}
             </div>
@@ -138,10 +147,10 @@ export default function AdminDashboard() {
 
         <div className="mt-8 space-x-4">
           <Link
-            href="/admin/jobs/new"
+            href="/admin/jobs"
             className="inline-block px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
-            Create New Job
+            🗓️ Jobs
           </Link>
           <Link
             href="/admin/customers"
