@@ -253,6 +253,12 @@ export default function JobDetails() {
           )}
 
           {/* Actions */}
+          <Link
+            href={`/crew/jobs/${job.id}/instructions`}
+            className="block w-full mb-4 px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition text-center"
+          >
+            📋 View Work Instructions
+          </Link>
           <div className="flex gap-4">
             {job.status === 'scheduled' || job.status === 'confirmed' ? (
               <Link

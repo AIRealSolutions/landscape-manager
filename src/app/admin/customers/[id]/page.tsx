@@ -42,6 +42,17 @@ export default function CustomerDetail() {
   const [uploadCaption, setUploadCaption] = useState('')
   const [photoFilter, setPhotoFilter] = useState('all')
 
+  // Workflow editor
+  const [steps, setSteps] = useState<any[]>([])
+  const [savingStep, setSavingStep] = useState(false)
+  const [stepForm, setStepForm] = useState({
+    title: '',
+    area: '',
+    instructions: '',
+    estimated_minutes: '',
+    requires_photo: false,
+  })
+
   useEffect(() => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -56,10 +67,11 @@ export default function CustomerDetail() {
   }, [])
 
   const fetchAll = async () => {
-    const [{ data: cust }, { data: photoRows }, { data: jobRows }] = await Promise.all([
+    const [{ data: cust }, { data: photoRows }, { data: jobRows }, { data: stepRows }] = await Promise.all([
       supabase.from('customers').select('*').eq('id', customerId).maybeSingle(),
       supabase.from('property_photos').select('*').eq('customer_id', customerId).order('created_at', { ascending: false }),
       supabase.from('jobs').select('*').eq('customer_id', customerId).order('scheduled_date', { ascending: false }),
+      supabase.from('workflow_steps').select('*').eq('customer_id', customerId).order('step_order', { ascending: true }),
     ])
 
     setCustomer(cust)
@@ -74,6 +86,68 @@ export default function CustomerDetail() {
     }
     setPhotos(photoRows || [])
     setJobs(jobRows || [])
+    setSteps(stepRows || [])
+  }
+
+  const handleAddStep = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!stepForm.title.trim()) return
+    setSavingStep(true)
+    setError(null)
+    try {
+      const { error: insertError } = await supabase.from('workflow_steps').insert([
+        {
+          customer_id: customerId,
+          step_order: steps.length,
+          title: stepForm.title.trim(),
+          area: stepForm.area.trim() || null,
+          instructions: stepForm.instructions.trim() || null,
+          estimated_minutes: stepForm.estimated_minutes ? parseInt(stepForm.estimated_minutes) : null,
+          requires_photo: stepForm.requires_photo,
+        },
+      ])
+      if (insertError) throw insertError
+      setStepForm({ title: '', area: '', instructions: '', estimated_minutes: '', requires_photo: false })
+      await fetchAll()
+    } catch (err: any) {
+      setError(err?.message || 'Failed to add step')
+    } finally {
+      setSavingStep(false)
+    }
+  }
+
+  const handleDeleteStep = async (stepId: string) => {
+    if (!confirm('Remove this step from the workflow?')) return
+    setError(null)
+    try {
+      const { error: deleteError } = await supabase.from('workflow_steps').delete().eq('id', stepId)
+      if (deleteError) throw deleteError
+      // Re-number remaining steps so ordering stays contiguous
+      const remaining = steps.filter((s) => s.id !== stepId)
+      await Promise.all(
+        remaining.map((s, i) => supabase.from('workflow_steps').update({ step_order: i }).eq('id', s.id))
+      )
+      await fetchAll()
+    } catch (err: any) {
+      setError(err?.message || 'Failed to remove step')
+    }
+  }
+
+  const handleMoveStep = async (index: number, direction: -1 | 1) => {
+    const target = index + direction
+    if (target < 0 || target >= steps.length) return
+    setError(null)
+    try {
+      const a = steps[index]
+      const b = steps[target]
+      await Promise.all([
+        supabase.from('workflow_steps').update({ step_order: target }).eq('id', a.id),
+        supabase.from('workflow_steps').update({ step_order: index }).eq('id', b.id),
+      ])
+      await fetchAll()
+    } catch (err: any) {
+      setError(err?.message || 'Failed to reorder steps')
+    }
   }
 
   const handleSaveProperty = async (e: React.FormEvent) => {
@@ -400,6 +474,146 @@ export default function CustomerDetail() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Property Workflow */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-1">
+            📋 Property Workflow <span className="text-gray-400 font-normal">({steps.length} steps)</span>
+          </h2>
+          <p className="text-sm text-gray-500 mb-6">
+            The step-by-step routine for this property. The crew sees these as work instructions on every job, in this order.
+          </p>
+
+          {steps.length > 0 && (
+            <ol className="space-y-3 mb-8">
+              {steps.map((step, index) => (
+                <li key={step.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <span className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                        {index + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900">{step.title}</p>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {step.area && (
+                            <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full">
+                              📍 {step.area}
+                            </span>
+                          )}
+                          {step.estimated_minutes && (
+                            <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full">
+                              ⏱ ~{step.estimated_minutes} min
+                            </span>
+                          )}
+                          {step.requires_photo && (
+                            <span className="text-xs px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full">
+                              📷 Photo required
+                            </span>
+                          )}
+                        </div>
+                        {step.instructions && (
+                          <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap">{step.instructions}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => handleMoveStep(index, -1)}
+                        disabled={index === 0}
+                        className="w-7 h-7 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-30 text-sm"
+                        title="Move up"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        onClick={() => handleMoveStep(index, 1)}
+                        disabled={index === steps.length - 1}
+                        className="w-7 h-7 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-30 text-sm"
+                        title="Move down"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        onClick={() => handleDeleteStep(step.id)}
+                        className="w-7 h-7 rounded bg-red-50 text-red-600 hover:bg-red-100 text-sm"
+                        title="Remove step"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+
+          <form onSubmit={handleAddStep} className="border-t border-gray-200 pt-6 space-y-4">
+            <h3 className="font-semibold text-gray-900">Add a Step</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-900 mb-1">Step Title *</label>
+                <input
+                  type="text"
+                  value={stepForm.title}
+                  onChange={(e) => setStepForm({ ...stepForm, title: e.target.value })}
+                  placeholder='e.g. "Mow front and side lawns"'
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-green-500 outline-none"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Area / Zone</label>
+                <input
+                  type="text"
+                  value={stepForm.area}
+                  onChange={(e) => setStepForm({ ...stepForm, area: e.target.value })}
+                  placeholder="e.g. Front yard"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-green-500 outline-none"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-1">Detailed Instructions</label>
+              <textarea
+                value={stepForm.instructions}
+                onChange={(e) => setStepForm({ ...stepForm, instructions: e.target.value })}
+                rows={3}
+                placeholder="Exactly how this step should be done at THIS property — mower height 3in, bag clippings, avoid sprinkler heads along east fence, stripe pattern toward street..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-green-500 outline-none"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">Est. Minutes</label>
+                <input
+                  type="number"
+                  value={stepForm.estimated_minutes}
+                  onChange={(e) => setStepForm({ ...stepForm, estimated_minutes: e.target.value })}
+                  min="1"
+                  placeholder="15"
+                  className="w-28 px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-green-500 outline-none"
+                />
+              </div>
+              <label className="flex items-center gap-2 mt-5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={stepForm.requires_photo}
+                  onChange={(e) => setStepForm({ ...stepForm, requires_photo: e.target.checked })}
+                  className="w-4 h-4 text-green-600 rounded"
+                />
+                <span className="text-sm text-gray-700">Crew must take a photo of this step</span>
+              </label>
+              <button
+                type="submit"
+                disabled={savingStep}
+                className="mt-5 px-6 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 transition"
+              >
+                {savingStep ? 'Adding...' : '+ Add Step'}
+              </button>
+            </div>
+          </form>
         </div>
 
         {/* Jobs */}
