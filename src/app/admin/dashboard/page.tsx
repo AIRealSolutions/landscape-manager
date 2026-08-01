@@ -156,6 +156,12 @@ export default function AdminDashboard() {
             📅 Calendar
           </Link>
           <Link
+            href="/admin/services"
+            className="inline-block px-6 py-3 bg-emerald-700 text-white rounded-lg hover:bg-emerald-800"
+          >
+            💲 Services & Pricing
+          </Link>
+          <Link
             href="/admin/financials"
             className="inline-block px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
           >

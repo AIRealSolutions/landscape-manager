@@ -20,6 +20,7 @@ export default function NewJob() {
     estimated_duration: 120,
     notes: '',
     completion_criteria: '',
+    price: '',
   })
   const [properties, setProperties] = useState<any[]>([])
   const [scheduleBlocks, setScheduleBlocks] = useState<any[]>([])
@@ -100,7 +101,7 @@ export default function NewJob() {
             notes: formData.notes,
             key_aspects: aspects,
             completion_criteria: formData.completion_criteria || null,
-            price: 0,
+            price: formData.price ? parseFloat(formData.price) : 0,
           },
         ])
         .select()
@@ -166,12 +167,16 @@ export default function NewJob() {
       : []
 
   const handleServiceToggle = (serviceId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      service_ids: prev.service_ids.includes(serviceId)
+    setFormData((prev) => {
+      const service_ids = prev.service_ids.includes(serviceId)
         ? prev.service_ids.filter((id) => id !== serviceId)
-        : [...prev.service_ids, serviceId],
-    }))
+        : [...prev.service_ids, serviceId]
+      // Suggest a price from the selected services (still editable below)
+      const suggested = services
+        .filter((s) => service_ids.includes(s.id))
+        .reduce((sum, s) => sum + Number(s.base_price || 0), 0)
+      return { ...prev, service_ids, price: suggested > 0 ? suggested.toFixed(2) : '' }
+    })
   }
 
   if (loading) {
@@ -254,7 +259,13 @@ export default function NewJob() {
               </label>
               <div className="space-y-2">
                 {services.length === 0 ? (
-                  <p className="text-gray-600 dark:text-gray-400">No services available</p>
+                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    No services in your catalog yet.{' '}
+                    <Link href="/admin/services" className="font-semibold underline">
+                      Set up Services &amp; Pricing
+                    </Link>{' '}
+                    first so jobs can be priced.
+                  </p>
                 ) : (
                   services.map((service) => (
                     <label key={service.id} className="flex items-center">
@@ -265,12 +276,31 @@ export default function NewJob() {
                         className="w-4 h-4 text-green-600 rounded"
                       />
                       <span className="ml-3 text-gray-700 dark:text-gray-300">
-                        {service.name} - ${service.base_price}
+                        {service.name} — ${Number(service.base_price).toFixed(2)}
                       </span>
                     </label>
                   ))
                 )}
               </div>
+            </div>
+
+            {/* Price */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Job Price ($)
+              </label>
+              <input
+                type="number"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-green-500 outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Auto-filled from the selected services — adjust for property size, travel, or discounts.
+              </p>
             </div>
 
             {/* Scheduled Date */}
