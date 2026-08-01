@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { uploadJobPhotos } from '@/lib/photos'
+import { updateCustomer, deleteCustomer } from '@/lib/customers'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -34,6 +35,18 @@ export default function CustomerDetail() {
     lawn_area_sqft: '',
     property_notes: '',
     address: '',
+  })
+
+  // Contact editing
+  const [editingContact, setEditingContact] = useState(false)
+  const [savingContact, setSavingContact] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [contact, setContact] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    preferred_contact: 'sms',
+    notes: '',
   })
 
   // Photo upload
@@ -82,6 +95,13 @@ export default function CustomerDetail() {
         lawn_area_sqft: cust.lawn_area_sqft?.toString() || '',
         property_notes: cust.property_notes || '',
         address: cust.address || '',
+      })
+      setContact({
+        name: cust.name || '',
+        email: cust.email || '',
+        phone: cust.phone || '',
+        preferred_contact: cust.preferred_contact || 'sms',
+        notes: cust.notes || '',
       })
     }
     setPhotos(photoRows || [])
@@ -156,25 +176,57 @@ export default function CustomerDetail() {
     setError(null)
     setNotice(null)
     try {
-      const { error: updateError } = await supabase
-        .from('customers')
-        .update({
-          property_type: property.property_type,
-          lot_size: property.lot_size || null,
-          lawn_area_sqft: property.lawn_area_sqft ? parseInt(property.lawn_area_sqft) : null,
-          property_notes: property.property_notes || null,
-          address: property.address,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', customerId)
-
-      if (updateError) throw updateError
+      await updateCustomer(customerId, {
+        property_type: property.property_type,
+        lot_size: property.lot_size || null,
+        lawn_area_sqft: property.lawn_area_sqft ? parseInt(property.lawn_area_sqft) : null,
+        property_notes: property.property_notes || null,
+        address: property.address,
+      })
       setNotice('Property details saved')
       await fetchAll()
     } catch (err: any) {
       setError(err?.message || 'Failed to save property details')
     } finally {
       setSavingProperty(false)
+    }
+  }
+
+  const handleSaveContact = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingContact(true)
+    setError(null)
+    setNotice(null)
+    try {
+      await updateCustomer(customerId, {
+        name: contact.name.trim(),
+        email: contact.email.trim() || null,
+        phone: contact.phone.trim() || null,
+        preferred_contact: contact.preferred_contact as 'sms' | 'email' | 'call',
+        notes: contact.notes.trim() || null,
+      })
+      setNotice('Contact info saved')
+      setEditingContact(false)
+      await fetchAll()
+    } catch (err: any) {
+      setError(err?.message || 'Failed to save contact info')
+    } finally {
+      setSavingContact(false)
+    }
+  }
+
+  const handleDeleteCustomer = async () => {
+    if (!confirm(`Delete ${customer.name}? This removes their photos and workflow. This cannot be undone.`)) {
+      return
+    }
+    setDeleting(true)
+    setError(null)
+    try {
+      await deleteCustomer(customerId)
+      router.push('/admin/customers')
+    } catch (err: any) {
+      setError(err?.message || 'Failed to delete customer')
+      setDeleting(false)
     }
   }
 
@@ -278,29 +330,105 @@ export default function CustomerDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Contact card */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Contact</h2>
-            <div className="space-y-3 text-sm">
-              {customer.phone && (
-                <p className="text-gray-700">
-                  <span className="text-gray-500">Phone:</span> {customer.phone}
-                </p>
-              )}
-              {customer.email && (
-                <p className="text-gray-700">
-                  <span className="text-gray-500">Email:</span> {customer.email}
-                </p>
-              )}
-              <p className="text-gray-700">
-                <span className="text-gray-500">Preferred contact:</span>{' '}
-                <span className="uppercase">{customer.preferred_contact || 'sms'}</span>
-              </p>
-              {customer.notes && (
-                <div>
-                  <p className="text-gray-500 mb-1">Notes:</p>
-                  <p className="text-gray-700 whitespace-pre-wrap">{customer.notes}</p>
-                </div>
-              )}
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Contact</h2>
+              <button
+                onClick={() => setEditingContact(!editingContact)}
+                className="text-sm text-green-600 hover:text-green-700 font-medium"
+              >
+                {editingContact ? 'Cancel' : '✏️ Edit'}
+              </button>
             </div>
+
+            {editingContact ? (
+              <form onSubmit={handleSaveContact} className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1">Name *</label>
+                  <input
+                    type="text"
+                    value={contact.name}
+                    onChange={(e) => setContact({ ...contact, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-green-500 outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={contact.phone}
+                    onChange={(e) => setContact({ ...contact, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-green-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={contact.email}
+                    onChange={(e) => setContact({ ...contact, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-green-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1">Preferred Contact</label>
+                  <select
+                    value={contact.preferred_contact}
+                    onChange={(e) => setContact({ ...contact, preferred_contact: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-green-500 outline-none"
+                  >
+                    <option value="sms">SMS Text Message</option>
+                    <option value="email">Email</option>
+                    <option value="call">Phone Call</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1">Notes</label>
+                  <textarea
+                    value={contact.notes}
+                    onChange={(e) => setContact({ ...contact, notes: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-green-500 outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={savingContact}
+                  className="w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 transition"
+                >
+                  {savingContact ? 'Saving...' : 'Save Contact'}
+                </button>
+              </form>
+            ) : (
+              <div className="space-y-3 text-sm">
+                {customer.phone && (
+                  <p className="text-gray-700">
+                    <span className="text-gray-500">Phone:</span>{' '}
+                    <a href={`tel:${customer.phone}`} className="text-blue-600 hover:text-blue-700">
+                      {customer.phone}
+                    </a>
+                  </p>
+                )}
+                {customer.email && (
+                  <p className="text-gray-700">
+                    <span className="text-gray-500">Email:</span>{' '}
+                    <a href={`mailto:${customer.email}`} className="text-blue-600 hover:text-blue-700">
+                      {customer.email}
+                    </a>
+                  </p>
+                )}
+                <p className="text-gray-700">
+                  <span className="text-gray-500">Preferred contact:</span>{' '}
+                  <span className="uppercase">{customer.preferred_contact || 'sms'}</span>
+                </p>
+                {customer.notes && (
+                  <div>
+                    <p className="text-gray-500 mb-1">Notes:</p>
+                    <p className="text-gray-700 whitespace-pre-wrap">{customer.notes}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Property details */}
@@ -671,6 +799,22 @@ export default function CustomerDetail() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Danger zone */}
+        <div className="bg-white rounded-xl shadow-sm border border-red-200 p-6">
+          <h2 className="text-lg font-bold text-red-700 mb-2">Danger Zone</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Deleting a customer permanently removes their profile, photos, and workflow. Customers with
+            jobs on record can't be deleted — that history belongs to your business records.
+          </p>
+          <button
+            onClick={handleDeleteCustomer}
+            disabled={deleting}
+            className="px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:opacity-50 transition"
+          >
+            {deleting ? 'Deleting...' : '🗑 Delete Customer'}
+          </button>
         </div>
       </main>
     </div>

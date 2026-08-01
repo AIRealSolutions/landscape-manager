@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { getCustomers } from '@/lib/customers'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -19,12 +20,11 @@ export default function CustomerList() {
         return
       }
 
-      const { data } = await supabase
-        .from('customers')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      setCustomers(data || [])
+      try {
+        setCustomers(await getCustomers())
+      } catch (err) {
+        console.error('Error loading customers:', err)
+      }
       setLoading(false)
     }
 

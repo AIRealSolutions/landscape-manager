@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getOrCreateCompanyId } from '@/lib/profile'
+import { createCustomer } from '@/lib/customers'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -33,22 +34,17 @@ export default function NewCustomer() {
 
       const companyId = await getOrCreateCompanyId()
 
-      const { error: insertError } = await supabase.from('customers').insert([
-        {
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          address: formData.address,
-          preferred_contact: formData.preferred_contact,
-          notes: formData.notes,
-          company_id: companyId,
-          service_history_count: 0,
-        },
-      ])
+      const created = await createCustomer({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        preferred_contact: formData.preferred_contact as 'sms' | 'email' | 'call',
+        notes: formData.notes,
+        company_id: companyId,
+      })
 
-      if (insertError) throw insertError
-
-      router.push('/admin/dashboard?created=customer')
+      router.push(created?.id ? `/admin/customers/${created.id}` : '/admin/dashboard?created=customer')
     } catch (err: any) {
       console.error('Error creating customer:', err)
       setError(err?.message || 'Failed to create customer')
