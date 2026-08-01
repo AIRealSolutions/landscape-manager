@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import { company } from '@/config/company'
 import './globals.css'
 
 const inter = Inter({
@@ -9,8 +10,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Landscape Service Manager',
-  description: 'AI-powered landscape service management platform',
+  title: `${company.name} — Professional Landscaping`,
+  description: `${company.tagline}. ${company.serviceArea}. Get a free quote today.`,
 }
 
 export const viewport: Viewport = {

@@ -1,12 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { company } from '@/config/company'
+
+const KNOWN_SOURCES = ['website', 'phone', 'referral', 'social', 'advertisement', 'other']
 
 export default function LeadCapture() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [utmNote, setUtmNote] = useState('')
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -18,6 +22,28 @@ export default function LeadCapture() {
     lead_source: 'website',
     message: '',
   })
+
+  // Attribute the lead: ?src=referral / ?utm_source=facebook etc. set the
+  // funnel source automatically, and full UTM details land in the lead notes
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const src = (params.get('src') || params.get('utm_source') || '').toLowerCase()
+
+    let lead_source = 'website'
+    if (KNOWN_SOURCES.includes(src)) lead_source = src
+    else if (['facebook', 'instagram', 'tiktok', 'nextdoor'].includes(src)) lead_source = 'social'
+    else if (['google', 'ads', 'gads', 'bing'].includes(src)) lead_source = 'advertisement'
+
+    const utmBits = ['utm_source', 'utm_medium', 'utm_campaign', 'src']
+      .map((k) => (params.get(k) ? `${k}=${params.get(k)}` : null))
+      .filter(Boolean)
+      .join(', ')
+
+    if (lead_source !== 'website') {
+      setFormData((prev) => ({ ...prev, lead_source }))
+    }
+    if (utmBits) setUtmNote(`[Source: ${utmBits}]`)
+  }, [])
 
   const serviceOptions = [
     { id: 'mowing', label: 'Lawn Mowing' },
@@ -61,7 +87,7 @@ export default function LeadCapture() {
           property_size: formData.property_size,
           service_interested: formData.services,
           lead_source: formData.lead_source,
-          notes: formData.message,
+          notes: [formData.message, utmNote].filter(Boolean).join('\n'),
         }),
       })
 
@@ -88,12 +114,21 @@ export default function LeadCapture() {
               Thank You!
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              We've received your request. Our team will contact you within 24 hours with a free quote.
+              We've received your request. The {company.name} team will contact you within 24 hours
+              with your free quote.
             </p>
             <div className="bg-green-50 dark:bg-green-900 p-4 rounded-lg mb-6">
               <p className="text-green-900 dark:text-green-200 font-medium">
-                📞 {formData.phone}
+                We'll reach you at 📞 {formData.phone}
               </p>
+              {company.phone && (
+                <p className="text-sm text-green-800 dark:text-green-300 mt-2">
+                  Need us sooner? Call{' '}
+                  <a href={`tel:${company.phone}`} className="font-semibold underline">
+                    {company.phone}
+                  </a>
+                </p>
+              )}
             </div>
             <Link
               href="/"
@@ -112,7 +147,7 @@ export default function LeadCapture() {
       <nav className="bg-white dark:bg-gray-800 shadow">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Link href="/" className="text-2xl font-bold text-green-600">
-            🌳 AIRealSolutions
+            {company.emoji} {company.name}
           </Link>
         </div>
       </nav>

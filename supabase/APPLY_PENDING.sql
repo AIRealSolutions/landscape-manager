@@ -1,6 +1,6 @@
 -- ============================================================
 -- RUN THIS ONCE in Supabase Dashboard -> SQL Editor -> New query
--- Pending: migrations 005 + 006 + 007 + 008 + 009. Safe to re-run.
+-- Pending: migrations 005-010. Safe to re-run (idempotent).
 -- ============================================================
 
 -- Property details, property photos, and job completion criteria
@@ -275,4 +275,13 @@ CREATE POLICY "Users can manage their company's service plans"
     SELECT id FROM customers
     WHERE company_id IN (SELECT company_id FROM users WHERE id = auth.uid())
   ));
+
+-- Public services catalog: the customer-facing homepage shows the company's
+-- services and prices to anonymous visitors (a normal public price menu).
+-- Writes remain company-scoped.
+
+DROP POLICY IF EXISTS "Anyone can view services" ON services;
+CREATE POLICY "Anyone can view services"
+  ON services FOR SELECT
+  USING (true);
 
