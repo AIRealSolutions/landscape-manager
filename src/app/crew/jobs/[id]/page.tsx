@@ -9,7 +9,7 @@ export default function JobDetails() {
   const [loading, setLoading] = useState(true)
   const [job, setJob] = useState<any>(null)
   const [customer, setCustomer] = useState<any>(null)
-  const [service, setService] = useState<any>(null)
+  const [photos, setPhotos] = useState<any[]>([])
   const router = useRouter()
   const params = useParams()
   const jobId = params.id as string
@@ -33,13 +33,20 @@ export default function JobDetails() {
     try {
       const { data: jobData } = await supabase
         .from('jobs')
-        .select('*, customers(name, phone, email, address), services(*)')
+        .select('*, customers(id, name, phone, email, address, property_notes, lot_size, lawn_area_sqft)')
         .eq('id', jobId)
         .single()
 
       setJob(jobData)
       if (jobData?.customers) {
         setCustomer(jobData.customers)
+
+        const { data: photoRows } = await supabase
+          .from('property_photos')
+          .select('*')
+          .eq('customer_id', jobData.customers.id)
+          .order('created_at', { ascending: false })
+        setPhotos(photoRows || [])
       }
     } catch (error) {
       console.error('Error fetching job:', error)
@@ -171,6 +178,69 @@ export default function JobDetails() {
               </div>
             </div>
           </div>
+
+          {/* Key Aspects */}
+          {job.key_aspects?.length > 0 && (
+            <div className="mb-8 pb-8 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">✅ Key Aspects — Must Cover</h3>
+              <ul className="space-y-2">
+                {job.key_aspects.map((aspect: string, i: number) => (
+                  <li
+                    key={i}
+                    className="flex items-start gap-2 bg-green-50 border border-green-100 text-green-900 rounded-lg px-4 py-3"
+                  >
+                    <span className="font-bold">{i + 1}.</span>
+                    <span>{aspect}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Completion Criteria */}
+          {job.completion_criteria && (
+            <div className="mb-8 pb-8 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">🎯 What Done Looks Like</h3>
+              <div className="bg-purple-50 p-4 rounded border-l-4 border-purple-500">
+                <p className="text-purple-900 whitespace-pre-wrap">{job.completion_criteria}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Property Notes */}
+          {(customer?.property_notes || customer?.lot_size || customer?.lawn_area_sqft) && (
+            <div className="mb-8 pb-8 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">🏡 Property Info</h3>
+              <div className="bg-amber-50 p-4 rounded border-l-4 border-amber-500 space-y-1">
+                {customer.lot_size && <p className="text-amber-900">Lot: {customer.lot_size}</p>}
+                {customer.lawn_area_sqft && (
+                  <p className="text-amber-900">Lawn area: {customer.lawn_area_sqft.toLocaleString()} sq ft</p>
+                )}
+                {customer.property_notes && (
+                  <p className="text-amber-900 whitespace-pre-wrap">{customer.property_notes}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Property Photos */}
+          {photos.length > 0 && (
+            <div className="mb-8 pb-8 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">📸 Property Photos</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {photos.map((photo) => (
+                  <a key={photo.id} href={photo.url} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-gray-200">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photo.url} alt={photo.caption || 'Property photo'} className="w-full h-28 object-cover" />
+                    <div className="p-1.5 bg-white">
+                      <span className="text-xs text-green-700 capitalize">{photo.category}</span>
+                      {photo.caption && <p className="text-xs text-gray-600 truncate">{photo.caption}</p>}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Notes */}
           {job.notes && (

@@ -17,7 +17,11 @@ export default function NewJob() {
     start_time: '',
     estimated_duration: 120,
     notes: '',
+    completion_criteria: '',
   })
+  const [keyAspects, setKeyAspects] = useState<string[]>([])
+  const [aspectInput, setAspectInput] = useState('')
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -50,11 +54,15 @@ export default function NewJob() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
+    setError(null)
 
     try {
       const selectedCustomer = customers.find((c) => c.id === formData.customer_id)
 
-      const { data: jobData, error } = await supabase
+      // Include any aspect still sitting in the input box
+      const aspects = [...keyAspects, ...(aspectInput.trim() ? [aspectInput.trim()] : [])]
+
+      const { data: jobData, error: insertError } = await supabase
         .from('jobs')
         .insert([
           {
@@ -66,24 +74,37 @@ export default function NewJob() {
             estimated_duration: formData.estimated_duration,
             status: 'scheduled',
             notes: formData.notes,
+            key_aspects: aspects,
+            completion_criteria: formData.completion_criteria || null,
             price: 0,
           },
         ])
         .select()
 
-      if (error) throw error
+      if (insertError) throw insertError
 
       if (jobData?.[0] && selectedCustomer) {
         await scheduleNotifications(jobData[0], selectedCustomer)
       }
 
-      router.push('/admin/dashboard')
-    } catch (error) {
-      console.error('Error creating job:', error)
-      alert('Failed to create job')
+      router.push('/admin/dashboard?created=job')
+    } catch (err: any) {
+      console.error('Error creating job:', err)
+      setError(err?.message || 'Failed to create job')
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const addAspect = () => {
+    const value = aspectInput.trim()
+    if (!value) return
+    setKeyAspects((prev) => [...prev, value])
+    setAspectInput('')
+  }
+
+  const removeAspect = (index: number) => {
+    setKeyAspects((prev) => prev.filter((_, i) => i !== index))
   }
 
   const scheduleNotifications = async (job: any, customer: any) => {
@@ -141,6 +162,12 @@ export default function NewJob() {
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-6">
+              <p className="font-medium">Could not create job</p>
+              <p className="text-sm mt-1">{error}</p>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Customer Selection */}
             <div>
@@ -229,6 +256,72 @@ export default function NewJob() {
                 min="15"
                 step="15"
                 required
+              />
+            </div>
+
+            {/* Key Aspects */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Key Aspects of the Job
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                The specific things the crew must cover — e.g. "Edge along driveway", "Clear leaves from flower beds", "Trim hedges to 4 ft".
+              </p>
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={aspectInput}
+                  onChange={(e) => setAspectInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      addAspect()
+                    }
+                  }}
+                  placeholder="Add an aspect and press Enter"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-green-500 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={addAspect}
+                  className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition"
+                >
+                  Add
+                </button>
+              </div>
+              {keyAspects.length > 0 && (
+                <ul className="space-y-1">
+                  {keyAspects.map((aspect, i) => (
+                    <li
+                      key={i}
+                      className="flex items-center justify-between bg-green-50 border border-green-100 text-green-900 rounded-lg px-3 py-2 text-sm"
+                    >
+                      <span>✔ {aspect}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeAspect(i)}
+                        className="text-green-700 hover:text-red-600 ml-2"
+                        title="Remove"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Completion Criteria */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                What Should It Look Like When Completed?
+              </label>
+              <textarea
+                value={formData.completion_criteria}
+                onChange={(e) => setFormData({ ...formData, completion_criteria: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-green-500 outline-none"
+                rows={3}
+                placeholder="Describe the finished result — e.g. lawn striped at 3 inches, beds weed-free with fresh mulch edges, all clippings hauled away..."
               />
             </div>
 

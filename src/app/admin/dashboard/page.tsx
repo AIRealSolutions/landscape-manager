@@ -70,7 +70,11 @@ export default function AdminDashboard() {
           <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg mb-6 flex items-center gap-2">
             <span>✅</span>
             <p className="font-medium">
-              {created === 'customer' ? 'Customer added successfully!' : 'Saved successfully!'}
+              {created === 'customer'
+                ? 'Customer added successfully!'
+                : created === 'job'
+                ? 'Job created successfully!'
+                : 'Saved successfully!'}
             </p>
           </div>
         )}
@@ -107,16 +111,25 @@ export default function AdminDashboard() {
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Recent Customers</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Recent Customers</h2>
+              <Link href="/admin/customers" className="text-sm text-green-600 hover:text-green-700 font-medium">
+                View all →
+              </Link>
+            </div>
             <div className="space-y-3">
               {customers.length === 0 ? (
                 <p className="text-gray-600 dark:text-gray-400">No customers yet</p>
               ) : (
                 customers.map((customer) => (
-                  <div key={customer.id} className="border border-gray-200 dark:border-gray-700 rounded p-3">
+                  <Link
+                    key={customer.id}
+                    href={`/admin/customers/${customer.id}`}
+                    className="block border border-gray-200 dark:border-gray-700 rounded p-3 hover:border-green-300 hover:bg-green-50 transition"
+                  >
                     <p className="font-medium text-gray-900 dark:text-white">{customer.name}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">{customer.email}</p>
-                  </div>
+                  </Link>
                 ))
               )}
             </div>
@@ -131,10 +144,10 @@ export default function AdminDashboard() {
             Create New Job
           </Link>
           <Link
-            href="/admin/customers/new"
+            href="/admin/customers"
             className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            Add Customer
+            Customers
           </Link>
           <Link
             href="/admin/financials"

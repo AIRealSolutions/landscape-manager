@@ -1,9 +1,3 @@
--- ============================================================
--- RUN THIS ONCE in Supabase Dashboard -> SQL Editor -> New query
--- Currently pending: migration 005 (property details + photos).
--- Migrations 003/004 were already applied earlier. Safe to re-run.
--- ============================================================
-
 -- Property details, property photos, and job completion criteria
 
 -- Property details on customers
