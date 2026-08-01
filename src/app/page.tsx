@@ -49,7 +49,7 @@ export default function Home() {
             <span className="text-xl font-bold text-gray-900">{company.name}</span>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/learn" className="hidden sm:inline text-sm font-medium text-green-700 hover:text-green-800">
+            <Link href="/learn" className="text-sm font-medium text-green-700 hover:text-green-800">
               Lawn Care Guide
             </Link>
             {company.phone && (
