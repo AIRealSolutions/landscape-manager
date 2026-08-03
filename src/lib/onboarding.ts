@@ -25,7 +25,7 @@ export interface RecommendedService {
 
 // Generate service recommendations based on property details
 export function generateRecommendations(intake: PropertyIntake): RecommendedService[] {
-  const recommendations: RecommendedService[] = []
+  let recommendations: RecommendedService[] = []
   const grass = GRASS_TYPES.find((g) => g.slug === intake.grassType)
 
   // 1. Regular mowing (always needed)
