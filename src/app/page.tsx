@@ -94,10 +94,10 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/leads/capture"
+              href="/onboarding"
               className="inline-block px-10 py-4 bg-white text-green-700 font-bold rounded-lg hover:bg-green-50 transition text-lg shadow-lg"
             >
-              Get Your Free Quote →
+              Get Your Personalized Plan →
             </Link>
             {company.phone && (
               <a
