@@ -44,9 +44,8 @@ create policy "company_insert_own_intake" on property_intake
 create policy "company_update_own_intake" on property_intake
   for update using (company_id = current_setting('app.company_id')::uuid);
 
--- Public function to accept new property intake (before auth)
+-- Public function to accept new property intake (single-tenant, auto-detects company)
 create or replace function submit_property_intake(
-  p_company_id uuid,
   p_customer_name text,
   p_customer_email text,
   p_customer_phone text,
@@ -60,14 +59,22 @@ create or replace function submit_property_intake(
 )
 returns jsonb as $$
 declare
+  v_company_id uuid;
   v_intake_id uuid;
 begin
+  -- Get the single company in this instance (white-label, single-tenant)
+  select id into v_company_id from companies limit 1;
+
+  if v_company_id is null then
+    raise exception 'No company configured';
+  end if;
+
   insert into property_intake (
     company_id, customer_name, customer_email, customer_phone,
     address, property_size, grass_type, current_condition,
     issues, service_level, availability
   ) values (
-    p_company_id, p_customer_name, p_customer_email, p_customer_phone,
+    v_company_id, p_customer_name, p_customer_email, p_customer_phone,
     p_address, p_property_size, p_grass_type, p_current_condition,
     p_issues, p_service_level, p_availability
   ) returning id into v_intake_id;
