@@ -151,12 +151,28 @@ export function calculateTotalMonthlyCost(recommendations: RecommendedService[])
   }, 0)
 }
 
+// Get the company ID (for white-label, should only be one company per instance)
+async function getCompanyId(): Promise<string> {
+  const { data, error } = await supabase
+    .from('companies')
+    .select('id')
+    .limit(1)
+    .single()
+
+  if (error) throw new Error('Unable to find company configuration')
+  return data.id
+}
+
 // Submit intake form and get recommendations
 export async function submitPropertyIntake(intake: PropertyIntake) {
   const recommendations = generateRecommendations(intake)
   const estimatedMonthlyCost = calculateTotalMonthlyCost(recommendations)
 
+  // Get company ID from database
+  const companyId = await getCompanyId()
+
   const { data, error } = await supabase.rpc('submit_property_intake', {
+    p_company_id: companyId,
     p_customer_name: intake.customerName,
     p_customer_email: intake.customerEmail,
     p_customer_phone: intake.customerPhone || null,

@@ -46,6 +46,7 @@ create policy "company_update_own_intake" on property_intake
 
 -- Public function to accept new property intake (before auth)
 create or replace function submit_property_intake(
+  p_company_id uuid,
   p_customer_name text,
   p_customer_email text,
   p_customer_phone text,
@@ -59,18 +60,14 @@ create or replace function submit_property_intake(
 )
 returns jsonb as $$
 declare
-  v_company_id uuid;
   v_intake_id uuid;
 begin
-  -- Get company from current setting (set in middleware)
-  v_company_id := current_setting('app.company_id')::uuid;
-
   insert into property_intake (
     company_id, customer_name, customer_email, customer_phone,
     address, property_size, grass_type, current_condition,
     issues, service_level, availability
   ) values (
-    v_company_id, p_customer_name, p_customer_email, p_customer_phone,
+    p_company_id, p_customer_name, p_customer_email, p_customer_phone,
     p_address, p_property_size, p_grass_type, p_current_condition,
     p_issues, p_service_level, p_availability
   ) returning id into v_intake_id;
